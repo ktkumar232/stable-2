@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stable — Quiz</title>
+  <style>
+    :root{
+      --bg:#08291f; /* deep green */
+      --card:#0b3a2b;
+      --accent:#19b38a;
+      --muted:#9bd6bf;
+      --glass: rgba(255,255,255,0.03);
+      --card-radius:18px;
+      --max-width:900px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;min-height:100%;background:linear-gradient(180deg,var(--bg),#052017 120%);color:var(--muted);display:flex;align-items:center;justify-content:center;padding:28px;
+    }
+    .container{width:100%;max-width:var(--max-width);}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    .logo{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#0f492f,#053b2b);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent);font-size:20px;box-shadow:0 6px 20px rgba(6,18,12,0.6)}
+    h1{margin:0;font-size:20px;color:var(--muted)}
+    .subtitle{margin:0;color:#afdcc6;font-size:13px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),var(--glass));border-radius:var(--card-radius);padding:22px;box-shadow:0 10px 30px rgba(3,10,7,0.6)}
+    .question-wrap{margin-top:14px}
+    .q-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    .progress{height:10px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden;flex:1;margin-left:12px}
+    .progress > span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7fe9c5);width:0%}
+    .question{font-size:18px;margin:0 0 12px 0;color:#e6f7ef}
+    .options{display:grid;gap:8px}
+    label.option{display:block;padding:12px;border-radius:12px;background:transparent;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+    input[type="radio"]{display:none}
+    label.option:hover{background:rgba(255,255,255,0.02)}
+    label.option.selected{background:linear-gradient(90deg,rgba(25,179,138,0.12),rgba(127,233,197,0.05));border-color:rgba(25,179,138,0.28)}
+    .controls{display:flex;justify-content:space-between;gap:12px;margin-top:18px}
+    button{background:var(--accent);border:none;padding:10px 16px;border-radius:12px;color:#04261a;font-weight:600;cursor:pointer;box-shadow:0 6px 16px rgba(25,179,138,0.12)}
+    button.ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04);box-shadow:none}
+    .results{display:none;text-align:center;padding:18px}
+    .score{font-size:36px;color:#eafff4;margin:8px 0}
+    .percent{font-size:18px;color:#c4efda}
+    .summary{margin-top:12px;text-align:left}
+    .retry{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:8px 12px;border-radius:10px;cursor:pointer}
+    footer{margin-top:12px;text-align:center;color:#8fcdb6;font-size:13px}
+    @media (max-width:560px){.card{padding:16px}.question{font-size:16px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">S</div>
+      <div>
+        <h1>Stable — Quiz</h1>
+        <p class="subtitle">Deep theme · 10 questions · Four options each · Score &amp; percentage</p>
+      </div>
+    </header>
+
+    <main class="card" id="quizCard">
+      <div class="q-header">
+        <div>Question <strong id="current">1</strong> of <strong id="total">10</strong></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="correctCount">Correct: 0</div>
+          <div class="progress" style="width:220px"><span id="progressBar"></span></div>
+        </div>
+      </div>
+
+      <div class="question-wrap">
+        <p class="question" id="questionText">Loading...</p>
+        <div class="options" id="optionsList"></div>
+      </div>
+
+      <div class="controls">
+        <button class="ghost" id="prevBtn" disabled>← Prev</button>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="nextBtn">Next →</button>
+        </div>
+      </div>
+
+      <div class="results" id="results">
+        <div class="score" id="scoreText">0 / 10</div>
+        <div class="percent" id="percentText">0%</div>
+        <div class="summary" id="summary"></div>
+        <div style="margin-top:14px"><button class="retry" id="retryBtn">Retry Quiz</button></div>
+      </div>
+
+    </main>
+    <footer>Project: <strong>Stable</strong> · Theme: <strong>Deep</strong></footer>
+  </div>
+
+  <script>
+    // Quiz data (10 questions) — answers are zero-indexed
+    const quiz = [
+      {q: "What is Stable (Stablechain)?", opts:["A decentralized exchange for cryptocurrencies","A blockchain designed specifically for stablecoins, especially USDT","A lending protocol for stablecoins","A yield aggregator"], a:1},
+      {q: "What is a unique gas design feature of Stable?", opts:["Gas is paid in ETH","Gas is free (no fees ever)","Gas is paid in USDT (native gas in USDT)","Gas is paid in a custom token “STBL”"], a:2},
+      {q: "Which of the following is a goal or feature of Stable?", opts:["High volatility trading","Predictable performance and regulatory alignment","Exclusive support for ERC‑20 tokens only","Proof-of-Stake with no transaction finality"], a:1},
+      {q: "What is meant by “gasless by design” in the context of Stable?", opts:["No transaction fees at all","Users pay in a separate token, not USDT","Peer transfers are free, and fees are in USDT to avoid surprises","Transactions are done off‑chain always"], a:2},
+      {q: "Which compatibility does Stable offer for developers?", opts:["Only its proprietary smart contract language","EVM (Ethereum Virtual Machine) compatibility","Solana-style programming model","No smart contracts at all"], a:1},
+      {q: "What is the projected throughput target (transactions per second) for Stable in its roadmap?", opts:["1,000 TPS","5,000 TPS","10,000+ TPS","100,000 TPS"], a:2},
+      {q: "What phase describes the time when Stable “goes live with real throughput and real utility”?", opts:["Phase 0","Phase 1","Phase 2","Phase 3"], a:1},
+      {q: "Which of these is not a listed feature of Stable for end users?", opts:["Sub‑second finality","Gas paid in USDT","Unlimited smart contract complexity","Free peer transfers"], a:2},
+      {q: "Why does Stable aim to build a chain “just for stablecoins”?", opts:["Because stablecoins are the only profitable assets","To avoid volatility and fragmentation in transaction rails","To prevent use of other tokens","To block access from other chains"], a:1},
+      {q: "Which of these is part of Stable’s roadmap in 2025 and beyond?", opts:["Launching a decentralized exchange (DEX)","Introducing parallel execution and StableDB to scale throughput","Shutting down the chain","Switching gas from USDT to another token"], a:1}
+    ];
+
+    // normalize (fix smart quotes due to inline string) - ensure opts are strings
+    quiz.forEach(item => item.opts = item.opts.map(o => String(o)));
+
+    const total = quiz.length;
+    let index = 0;
+    const answers = new Array(total).fill(null); // user's choices
+
+    // DOM refs
+    const currentEl = document.getElementById('current');
+    const totalEl = document.getElementById('total');
+    const qText = document.getElementById('questionText');
+    const optsList = document.getElementById('optionsList');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const progressBar = document.getElementById('progressBar');
+    const correctCountEl = document.getElementById('correctCount');
+    const resultsEl = document.getElementById('results');
+    const scoreText = document.getElementById('scoreText');
+    const percentText = document.getElementById('percentText');
+    const summaryEl = document.getElementById('summary');
+    const retryBtn = document.getElementById('retryBtn');
+
+    totalEl.textContent = total;
+
+    function renderQuestion(i){
+      const item = quiz[i];
+      currentEl.textContent = i+1;
+      qText.textContent = item.q;
+      optsList.innerHTML = '';
+
+      item.opts.forEach((opt, idx) => {
+        const id = `q${i}_opt${idx}`;
+        const label = document.createElement('label');
+        label.className = 'option';
+        label.setAttribute('data-idx', idx);
+        label.htmlFor = id;
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = `q${i}`;
+        radio.id = id;
+        radio.value = idx;
+        radio.checked = answers[i] === idx;
+
+        radio.addEventListener('change', ()=>{
+          answers[i] = idx;
+          updateSelectionUI();
+        });
+
+        label.appendChild(radio);
+        const span = document.createElement('span');
+        span.textContent = opt;
+        label.appendChild(span);
+
+        label.addEventListener('click', ()=>{
+          // clicking label should select
+          radio.checked = true;
+          answers[i] = idx;
+          updateSelectionUI();
+        });
+
+        optsList.appendChild(label);
+      });
+
+      updateSelectionUI();
+      updateProgress();
+      prevBtn.disabled = (i===0);
+      nextBtn.textContent = (i===total-1) ? 'Submit' : 'Next →';
+    }
+
+    function updateSelectionUI(){
+      const labels = optsList.querySelectorAll('label.option');
+      labels.forEach(l => {
+        const idx = Number(l.getAttribute('data-idx'));
+        if(answers[index] === idx) l.classList.add('selected'); else l.classList.remove('selected');
+      });
+      // update correct count display (for already-answered questions)
+      const correctSoFar = answers.reduce((acc, val, i)=> acc + ((val !== null && val === quiz[i].a) ? 1 : 0), 0);
+      correctCountEl.textContent = `Correct: ${correctSoFar}`;
+    }
+
+    function updateProgress(){
+      const pct = Math.round((index / (total-1)) * 100);
+      progressBar.style.width = pct + '%';
+    }
+
+    prevBtn.addEventListener('click', ()=>{
+      if(index>0){ index--; renderQuestion(index); }
+    });
+
+    nextBtn.addEventListener('click', ()=>{
+      if(index < total-1){ index++; renderQuestion(index); }
+      else { submitQuiz(); }
+    });
+
+    function submitQuiz(){
+      // ensure at least one answer? we'll allow partial
+      let score = 0;
+      const details = [];
+      quiz.forEach((item,i)=>{
+        const user = answers[i];
+        const correct = item.a;
+        const ok = user !== null && user === correct;
+        if(ok) score++;
+        details.push({q:item.q, chosen: user===null?null:item.opts[user], correct: item.opts[correct], ok});
+      });
+
+      // show results
+      scoreText.textContent = `${score} / ${total}`;
+      const pct = Math.round((score/total)*100);
+      percentText.textContent = pct + '%';
+
+      summaryEl.innerHTML = '';
+      details.forEach((d, i)=>{
+        const div = document.createElement('div');
+        div.style.padding = '8px 10px';
+        div.style.borderTop = '1px dashed rgba(255,255,255,0.02)';
+        div.innerHTML = `<strong>Q${i+1}:</strong> ${d.q}<br><em>Your answer:</em> ${d.chosen ?? '<span style="opacity:.6">(No answer)</span>'} <br><em>Correct:</em> ${d.correct} ${d.ok?'<span style="color:var(--accent);">✓</span>':'<span style="color:#ff9fa8">✗</span>'}`;
+        summaryEl.appendChild(div);
+      });
+
+      document.getElementById('quizCard').querySelector('.question-wrap').style.display = 'none';
+      document.querySelector('.controls').style.display = 'none';
+      resultsEl.style.display = 'block';
+      progressBar.style.width = '100%';
+    }
+
+    retryBtn.addEventListener('click', ()=>{
+      // reset
+      for(let i=0;i<answers.length;i++) answers[i]=null;
+      index = 0;
+      document.getElementById('quizCard').querySelector('.question-wrap').style.display = '';
+      document.querySelector('.controls').style.display = '';
+      resultsEl.style.display = 'none';
+      renderQuestion(index);
+      updateSelectionUI();
+    });
+
+    // initial render
+    renderQuestion(index);
+  </script>
+</body>
+</html>
